@@ -24,15 +24,16 @@ func transfer(size int, wg *sync.WaitGroup, input []byte, result chan<- []byte) 
 	fmt.Println("Channel opened, starting to transfer array")
 	var byteArray = make([]byte, size)
 	for i := 0; i < size; i++ { //looping through the array
-		byteArray[i] = input[i]
+		byteArray[i] = input[i] //transferring the value
 	}
-	result <- byteArray
-	defer wg.Done()
+	result <- byteArray //sending data back through channel
+	defer wg.Done()     //telling the waitgroup that the routine is finished
 
 }
 
 func main() {
 	var size = 80000000 //Setting the size of the Arrays
+	fmt.Println("Size of the Array is set to: ", size/8000000, " megabyte")
 
 	var wg sync.WaitGroup //creating the waitgroup
 
@@ -64,20 +65,20 @@ func main() {
 	wg.Wait() //waiting until all routines are finished
 
 	close(ch1)
-	close(ch2) //closing channel
+	close(ch2) //closing channels
 	close(ch3)
 
-	endTime = time.Now() //setting end time
-	var duration = endTime.Sub(startTime)
-	fmt.Println("Done writing Arrays with routines. Duration: ", duration)
+	endTime = time.Now()                  //setting end time
+	var duration = endTime.Sub(startTime) //calculating duration
+	fmt.Println("Done writing Arrays with routines. Duration: ", duration, ", Speed:", (float64(size/8000000)/(duration.Seconds()+(float64(duration.Milliseconds())/1000)))*3, "mBit")
 
 	//now transferring
 
 	fmt.Println("Starting to transfer Arrays")
-	startTime = time.Now()
+	startTime = time.Now() //setting starttime
 
 	ch4 := make(chan []byte, 1)
-	ch5 := make(chan []byte, 1) //Creating the 3 byteArray1-Channels
+	ch5 := make(chan []byte, 1) //Creating the 3 byteArray-Channels
 	ch6 := make(chan []byte, 1)
 
 	wg.Add(1)                               //add 1 task to the GoRoutine
@@ -97,6 +98,7 @@ func main() {
 	close(ch5) //closing channels
 	close(ch6)
 
-	endTime = time.Now()
-	fmt.Println("Done transferring Array. Duration: ", endTime.Sub(startTime))
+	endTime = time.Now()              //stopping time
+	duration = endTime.Sub(startTime) //calculating duration
+	fmt.Println("Done transferring Array. Duration: ", duration, ", Speed:", (float64(size/8000000)/(duration.Seconds()+(float64(duration.Milliseconds())/1000)))*3, "mBit")
 }
