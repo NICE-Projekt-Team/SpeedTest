@@ -100,5 +100,5 @@ func main() {
 
 	endTime = time.Now()              //stopping time
 	duration = endTime.Sub(startTime) //calculating duration
-	fmt.Println("Done transferring Array. Duration: ", duration, ", Speed:", (float64(size/1000000)/(duration.Seconds()+(float64(duration.Milliseconds())/1000)))*3, "mBit/s")
+	fmt.Println("Done transferring array. Duration: ", duration, ", Speed:", (float64(size/1000000)/(duration.Seconds()+(float64(duration.Milliseconds())/1000)))*3, "mBit/s")
 }
