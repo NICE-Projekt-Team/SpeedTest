@@ -28,11 +28,10 @@ func transfer(size int, wg *sync.WaitGroup, input []byte, result chan<- []byte) 
 	}
 	result <- byteArray //sending data back through channel
 	defer wg.Done()     //telling the waitgroup that the routine is finished
-
 }
 
-func main() {
-	var size = 80000000 //Setting the size of the Arrays
+func sendPackages(size int) float64 {
+
 	fmt.Println("Size of the Array is set to: ", size/8000000, " megabyte")
 
 	var wg sync.WaitGroup //creating the waitgroup
@@ -100,5 +99,28 @@ func main() {
 
 	endTime = time.Now()              //stopping time
 	duration = endTime.Sub(startTime) //calculating duration
-	fmt.Println("Done transferring array. Duration: ", duration, ", Speed:", (float64(size/1000000)/(duration.Seconds()+(float64(duration.Milliseconds())/1000)))*3, "mBit/s")
+	var speed = (float64(size/1000000) / (duration.Seconds() + (float64(duration.Milliseconds()) / 1000))) * 3
+	fmt.Println("Done transferring Array. Duration: ", duration, ", Speed:", (float64(size/1000000)/(duration.Seconds()+(float64(duration.Milliseconds())/1000)))*3, "mBit/s")
+	return speed
+}
+
+func main() {
+	var size = 80000000     //Setting the size of the Arrays
+	var duration = 1        //duration in minutes
+	var startTime time.Time //Creating the start and end Time variable
+	var speeds = make([]float64, 2000)
+	var counter = 0
+	sum := float64(0)
+	startTime = time.Now()
+	for time.Now().Sub(startTime).Minutes() < float64(duration) {
+		speeds[counter] = sendPackages(size)
+		counter++
+	}
+
+	for i := 0; i < counter; i++ {
+		sum += speeds[i]
+	}
+
+	fmt.Println("3-Way transfer was executed ", counter, " times in ", duration, "minutes. The average speed was ", sum/float64(counter-1), "mBit")
+
 }
