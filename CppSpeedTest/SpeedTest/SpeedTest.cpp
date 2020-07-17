@@ -1,5 +1,3 @@
-
-
 #include <iostream>
 
 
@@ -19,6 +17,10 @@
 
 using namespace std;
 
+static std::vector<unsigned char> bA1;
+static std::vector<unsigned char> bA2;
+static std::vector<unsigned char> bA3;
+int total;
 
 std::vector<unsigned char> writeArray(int size)
 {
@@ -46,6 +48,8 @@ std::vector<unsigned char> transfer(vector<unsigned char> input)
         byteArrayTransfer.push_back(input[i]);
     }
 
+    total += input.size();
+
     return byteArrayTransfer;
 }
 
@@ -53,44 +57,72 @@ std::vector<unsigned char> transfer(vector<unsigned char> input)
 int main()
 {
     static int size = 1024; //Setting the size of the arrays
+    std::vector<std::thread> threads;
+    std::cout << "Size of the Array is set to: " << size << endl<< endl;
+    int cases = 1;
+    int rounds = 0;
 
-    std::cout << "Size of the Array is set to: " << size << endl;
-
-    static std::vector<unsigned char> bA1;
-    static std::vector<unsigned char> bA2;
-    static std::vector<unsigned char> bA3;
 
     auto startTime = chrono::steady_clock::now();
 
-    std::thread t1([] {bA1 = writeArray(size);});
-    std::thread t2([] {bA2 = writeArray(size);});
-    std::thread t3([] {bA3 = writeArray(size);});
+    std::thread t1([] {bA1 = writeArray(size); });
+    std::thread t2([] {bA2 = writeArray(size); });
+    std::thread t3([] {bA3 = writeArray(size); });
 
 
 
-   
+
     t1.join();
     t2.join();
     t3.join();
 
     auto endTime = chrono::steady_clock::now();
 
-    std::cout << "Done writing arrays. Duration: " << chrono::duration_cast<chrono::milliseconds>(endTime - startTime).count() << "ms" <<endl;
-    
+    std::cout << "Done writing arrays. \nDuration: " << chrono::duration_cast<chrono::milliseconds>(endTime - startTime).count() << "ms" << endl;
+
     auto startTime1 = chrono::steady_clock::now();
 
-    std::thread t4([] {bA2 = transfer(bA1); });
-    std::thread t5([] {bA3 = transfer(bA2); });
-    std::thread t6([] {bA1 = transfer(bA3); });
+    for (int i = 0; chrono::duration_cast<chrono::minutes>(chrono::steady_clock::now() - startTime1).count() < 1; i++)
+    {
 
-    t4.join();
-    t5.join();
-    t6.join();
+        switch (cases)
+        {
+        case 1:
+        {
+            std::thread t([] {bA2 = transfer(bA1); });
+            threads.push_back(std::move(t));
+        }
+        break;
+
+        case 2:
+        {
+            std::thread t([] {bA3 = transfer(bA2); });
+            threads.push_back(std::move(t));
+        }
+        break;
+        case 3:
+        {
+            std::thread t([] {bA1 = transfer(bA3); });
+            threads.push_back(std::move(t));
+        }
+        break;
+        }
+
+        threads[i].join();
+
+        if (cases == 1) cases = 2;
+        if (cases == 2) cases = 3;
+        if (cases == 3) cases = 1;
+
+        rounds += 1;
+    }
+
+
+
 
     auto endTime1 = chrono::steady_clock::now();
 
-    std::cout << "\nDone transferring arrays." << endl << "Duration: " << chrono::duration_cast<chrono::milliseconds>(endTime1 - startTime1).count() 
-              << "ms" << "\nSpeed: " << size * (chrono::duration_cast<chrono::milliseconds>(endTime1 - startTime1).count()) / 60 
-              << " mBit/s" << endl;
+    std::cout << "\nDone transferring arrays." << endl << "Duration: " << chrono::duration_cast<chrono::seconds>(endTime1 - startTime1).count()
+        << "s" << "\nSpeed: " << total / 1000000 * (chrono::duration_cast<chrono::seconds>(endTime1 - startTime1).count()) / 60
+        << " mBit/s" << endl;
 }
-
