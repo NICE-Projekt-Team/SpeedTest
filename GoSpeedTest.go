@@ -5,9 +5,22 @@ import (
 	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/Azer0s/quacktors"
+	"github.com/Azer0s/quacktors/pid"
 )
 
-func writeArray(size int, wg *sync.WaitGroup, result chan<- []byte) {
+type sizeInput struct {
+	sender pid.Pid
+	wg     sync.WaitGroup
+	size   int
+}
+
+func writeArray() {
+	var sizeInput = quacktors.Receive()
+	sender := sizeInput(sender)
+	size := sizeInput(size)
+	wg := sizeInput(wg)
 	var byteArray = make([]byte, size) //creating the array
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)          //defining the random number generator
@@ -32,33 +45,31 @@ func sendPackages(size int) float64 {
 	fmt.Println("Size of the Array is set to: ", size/8000000, " megabyte")
 
 	var wg sync.WaitGroup //creating the waitgroup
+	self := quacktors.Self()
 
 	var byteArray1 = make([]byte, size)
 	var byteArray2 = make([]byte, size) //Creating the 3 byteArrays
 	var byteArray3 = make([]byte, size)
 
-	ch1 := make(chan []byte, 1)
-	ch2 := make(chan []byte, 1) //Creating the 3 byteArray1-Channels
-	ch3 := make(chan []byte, 1)
-
 	fmt.Println("Starting to write Arrays")
 
-	wg.Add(1)                     //add 1 task to the GoRoutine
-	go writeArray(size, &wg, ch1) //define goroutine
-	wg.Add(1)
-	go writeArray(size, &wg, ch2)
-	wg.Add(1)
-	go writeArray(size, &wg, ch3)
+	sizeInput := sizeInput{self, wg, size}
 
-	byteArray1 = <-ch1
-	byteArray2 = <-ch2 //receiving data from channels
-	byteArray3 = <-ch3
+	wg.Add(1) //add 1 task to the GoRoutine
+	quacktors.Spawn(writeArray)
+	quacktors.Send(self, sizeInput)
+	wg.Add(1)
+	quacktors.Spawn(writeArray)
+	quacktors.Send(self, sizeInput)
+	wg.Add(1)
+	quacktors.Spawn(writeArray)
+	quacktors.Send(self, sizeInput)
+
+	byteArray1 = quacktors.Receive()
+	byteArray2 = quacktors.Receive() //receiving data from channels
+	byteArray3 = quacktors.Receive()
 
 	wg.Wait() //waiting until all routines are finished
-
-	close(ch1)
-	close(ch2) //closing channels
-	close(ch3)
 
 	//now transferring
 
