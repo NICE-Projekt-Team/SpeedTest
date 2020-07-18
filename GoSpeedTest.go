@@ -27,11 +27,12 @@ func writeArray() {
 	for i := 0; i < size; i++ { //looping through the array
 		byteArray[i] = byte(r1.Intn(2)) //setting a random value
 	}
-	result <- byteArray //sending data back through channel
-	defer wg.Done()     //telling the waitgroup that the routine is finished
+	quacktors.Send(sender, byteArray)
+	defer wg.Done() //telling the waitgroup that the routine is finished
 }
 
 func transfer(size int, wg *sync.WaitGroup, input []byte, result chan<- []byte) {
+	//TODO: implement the actor model framework for the transfer as well
 	var byteArray = make([]byte, size)
 	for i := 0; i < size; i++ { //looping through the array
 		byteArray[i] = input[i] //transferring the value
@@ -73,6 +74,7 @@ func sendPackages(size int) float64 {
 
 	//now transferring
 
+	//TODO: implement the actor model framework for the transfer as well
 	fmt.Println("Starting to transfer Arrays")
 	startTine := time.Now()
 	ch4 := make(chan []byte, 1)
