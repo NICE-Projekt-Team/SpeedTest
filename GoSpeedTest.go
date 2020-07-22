@@ -3,87 +3,101 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"sync"
 	"time"
+
+	"github.com/Azer0s/quacktors"
+	"github.com/Azer0s/quacktors/pid"
 )
 
-func writeArray(size int, wg *sync.WaitGroup, result chan<- []byte) {
+type sizeInputStruct struct {
+	sender pid.Pid
+	size   int
+}
+
+type arrayInputStruct struct {
+	sender    pid.Pid
+	size      int
+	byteArray []byte
+}
+
+type arrayOutputStruct struct {
+	sender    pid.Pid
+	byteArray []byte
+}
+
+func writeArray() {
+	sizeInput := quacktors.Receive()
+	sender := sizeInput.(sizeInputStruct).sender
+	size := sizeInput.(sizeInputStruct).size
 	var byteArray = make([]byte, size) //creating the array
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)          //defining the random number generator
 	for i := 0; i < size; i++ { //looping through the array
 		byteArray[i] = byte(r1.Intn(2)) //setting a random value
 	}
-	result <- byteArray //sending data back through channel
-	defer wg.Done()     //telling the waitgroup that the routine is finished
+	quacktors.Send(sender, arrayOutputStruct{
+		sender:    quacktors.Self(),
+		byteArray: byteArray,
+	})
 }
 
-func transfer(size int, wg *sync.WaitGroup, input []byte, result chan<- []byte) {
+func transfer() {
+	arrayInput := quacktors.Receive()
+	sender := arrayInput.(arrayInputStruct).sender
+	size := arrayInput.(arrayInputStruct).size
+	inputByteArray := arrayInput.(arrayInputStruct).byteArray
 	var byteArray = make([]byte, size)
 	for i := 0; i < size; i++ { //looping through the array
-		byteArray[i] = input[i] //transferring the value
+		byteArray[i] = inputByteArray[i] //transferring the value
 	}
-	result <- byteArray //sending data back through channel
-	defer wg.Done()     //telling the waitgroup that the routine is finished
+	quacktors.Send(sender, arrayOutputStruct{
+		sender:    quacktors.Self(),
+		byteArray: byteArray,
+	})
 }
 
 func sendPackages(size int) float64 {
 
 	fmt.Println("Size of the Array is set to: ", size/8000000, " megabyte")
 
-	var wg sync.WaitGroup //creating the waitgroup
+	self := quacktors.Self()
 
 	var byteArray1 = make([]byte, size)
 	var byteArray2 = make([]byte, size) //Creating the 3 byteArrays
 	var byteArray3 = make([]byte, size)
 
-	ch1 := make(chan []byte, 1)
-	ch2 := make(chan []byte, 1) //Creating the 3 byteArray1-Channels
-	ch3 := make(chan []byte, 1)
-
 	fmt.Println("Starting to write Arrays")
 
-	wg.Add(1)                     //add 1 task to the GoRoutine
-	go writeArray(size, &wg, ch1) //define goroutine
-	wg.Add(1)
-	go writeArray(size, &wg, ch2)
-	wg.Add(1)
-	go writeArray(size, &wg, ch3)
+	sizeInput := sizeInputStruct{self, size}
 
-	byteArray1 = <-ch1
-	byteArray2 = <-ch2 //receiving data from channels
-	byteArray3 = <-ch3
+	pid1 := quacktors.Spawn(writeArray)
+	pid2 := quacktors.Spawn(writeArray)
+	pid3 := quacktors.Spawn(writeArray)
 
-	wg.Wait() //waiting until all routines are finished
+	quacktors.Send(pid1, sizeInput)
+	quacktors.Send(pid2, sizeInput)
+	quacktors.Send(pid3, sizeInput)
 
-	close(ch1)
-	close(ch2) //closing channels
-	close(ch3)
+	byteArray1 = quacktors.Receive().(arrayOutputStruct).byteArray
+	byteArray2 = quacktors.Receive().(arrayOutputStruct).byteArray //receiving data from channels
+	byteArray3 = quacktors.Receive().(arrayOutputStruct).byteArray
 
 	//now transferring
 
 	fmt.Println("Starting to transfer Arrays")
 	startTine := time.Now()
-	ch4 := make(chan []byte, 1)
-	ch5 := make(chan []byte, 1) //Creating the 3 byteArray-Channels
-	ch6 := make(chan []byte, 1)
 
-	wg.Add(1)                               //add 1 task to the GoRoutine
-	go transfer(size, &wg, byteArray1, ch4) //define goroutine
-	wg.Add(1)
-	go transfer(size, &wg, byteArray2, ch5)
-	wg.Add(1)
-	go transfer(size, &wg, byteArray3, ch6)
+	arrayInput1 := arrayInputStruct{self, size, byteArray1}
+	arrayInput2 := arrayInputStruct{self, size, byteArray2}
+	arrayInput3 := arrayInputStruct{self, size, byteArray3}
 
-	byteArray1 = <-ch1
-	byteArray2 = <-ch2 //receiving data from channels
-	byteArray3 = <-ch3
+	quacktors.Send(quacktors.Spawn(transfer), arrayInput1)
+	quacktors.Send(quacktors.Spawn(transfer), arrayInput2)
+	quacktors.Send(quacktors.Spawn(transfer), arrayInput3)
 
-	wg.Wait() //waiting until all routines are done
-
-	close(ch4)
-	close(ch5) //closing channels
-	close(ch6)
+	byteArray3 = quacktors.Receive().(arrayOutputStruct).byteArray
+	byteArray2 = quacktors.Receive().(arrayOutputStruct).byteArray //receiving data from channels
+	byteArray1 = quacktors.Receive().(arrayOutputStruct).byteArray
 
 	speed := float64(size/1000000) / (float64(time.Now().Sub(startTine).Milliseconds()) / 1000)
 	fmt.Println("Done transferring Array. Duration: ", time.Now().Sub(startTine), ", Speed:", speed, "mBit/s")
